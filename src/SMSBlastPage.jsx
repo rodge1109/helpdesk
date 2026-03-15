@@ -2873,9 +2873,6 @@ function ServiceDashboardContent() {
         <img src="/assets/images/header1.png" alt="Bogo Water District Logo" className="mx-auto mb-3" style={{ width: 100, height: 100, objectFit: 'contain' }} />
         <h2 className="text-2xl font-bold text-white tracking-wide">Service Dashboard</h2>
         <p className="inline-block text-sm text-white font-semibold mt-2 px-4 py-1 bg-blue-600 rounded-full">Bogo Water District — Online Services</p>
-        <p className="text-xs text-white/60 mt-3 leading-relaxed max-w-md mx-auto">
-          Select a service below to submit a request. Fill in the required fields and tap <span className="text-white font-semibold">Submit</span> — your request will be recorded and forwarded to our team. For urgent concerns, please call our office directly.
-        </p>
       </div>
 
       {/* Swipeable Services Grid */}
@@ -2936,7 +2933,3 @@ export default function SMSBlastPage({ employee, authToken, onMenuChange }) {
 
   return <ActiveContent employee={employee} authToken={authToken} />;
 }
-
-
-
-
