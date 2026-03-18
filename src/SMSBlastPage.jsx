@@ -2294,7 +2294,7 @@ function ServiceFormScreen({ config, onClose }) {
         const ticket = generateTicketNumber();
         setTicketNumber(ticket);
         
-        // Fetch Hotlines tab to get the LeakReports hotline
+        // Fetch Hotlines tab to get all LeakReports hotlines
         const hotlinesRes = await fetch(`${API_BASE}/sheets/get-tab?tab=Hotlines`);
         const hotlinesText = await hotlinesRes.text();
         let hotlinesData;
@@ -2302,19 +2302,24 @@ function ServiceFormScreen({ config, onClose }) {
           throw new Error('Failed to fetch hotlines data');
         }
         
-        // Look for LeakReports row in Hotlines tab
-        let hotlineNumber = '';
+        // Collect all LeakReports hotline numbers (scan all rows and columns)
+        const hotlineNumbers = [];
         if (hotlinesData.success && hotlinesData.rows) {
-          const hotlineRow = hotlinesData.rows.find(row => 
-            row[0] && row[0].toString().toLowerCase().includes('leak')
-          );
-          if (hotlineRow && hotlineRow[2]) {
-            hotlineNumber = hotlineRow[2].toString().trim();
-          }
+          hotlinesData.rows.forEach(row => {
+            if (row[0] && row[0].toString().toLowerCase().includes('leak')) {
+              // Collect all non-empty phone numbers from this row (all columns after first)
+              for (let i = 1; i < row.length; i++) {
+                const phone = row[i] ? row[i].toString().trim() : '';
+                if (phone && phone !== '') {
+                  hotlineNumbers.push(phone);
+                }
+              }
+            }
+          });
         }
         
-        if (!hotlineNumber) {
-          console.warn('Hotline number not found for LeakReports');
+        if (hotlineNumbers.length === 0) {
+          console.warn('No hotline numbers found for LeakReports');
         }
         
         // Save to LeakReports with ticket number
@@ -2342,22 +2347,24 @@ function ServiceFormScreen({ config, onClose }) {
         
         if (!saveData.success) throw new Error(saveData.error || 'Failed to save leak report');
         
-        // Send SMS notification to hotline if available
-        if (hotlineNumber) {
+        // Send SMS notification to all hotline numbers
+        if (hotlineNumbers.length > 0) {
           const smsMessage = `Leak Report Received\nTicket: ${ticket}\nLocation: ${form.address}\nUrgency: ${form.urgency}\nReporter: ${form.name} (${form.contactNumber})`;
           
-          try {
-            await fetch(`${API_BASE}/sms/send-single`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                phone: hotlineNumber,
-                message: smsMessage,
-              }),
-            });
-          } catch (smsErr) {
-            console.error('Failed to send SMS notification:', smsErr);
-            // Don't throw error - SMS failure shouldn't prevent form submission
+          for (const hotlineNumber of hotlineNumbers) {
+            try {
+              await fetch(`${API_BASE}/sms/send-single`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  phone: hotlineNumber,
+                  message: smsMessage,
+                }),
+              });
+            } catch (smsErr) {
+              console.error(`Failed to send SMS notification to ${hotlineNumber}:`, smsErr);
+              // Don't throw error - SMS failure shouldn't prevent form submission
+            }
           }
         }
         
