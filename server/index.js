@@ -108,6 +108,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// Keep-alive endpoint (to prevent Render from sleeping on free tier)
+app.get('/api/keep-alive', (req, res) => {
+  res.status(200).json({ alive: true, timestamp: new Date().toISOString() });
+});
+
 // Serve React frontend static files
 app.use(express.static(path.join(__dirname, '../dist')));
 

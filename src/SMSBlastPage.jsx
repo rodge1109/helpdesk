@@ -2166,7 +2166,7 @@ function ServiceFormScreen({ config, onClose }) {
   const [submitting, setSub]  = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError]     = useState('');
-  const [billData, setBillData] = useState(null);
+  const [billDataList, setBillDataList] = useState([]);
   const [billNotFound, setBillNotFound] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
   const [leakReportSubmitted, setLeakReportSubmitted] = useState(false);
@@ -2174,30 +2174,30 @@ function ServiceFormScreen({ config, onClose }) {
   const [waterIssueTicketNumber, setWaterIssueTicketNumber] = useState('');
   const [billingConcernSubmitted, setBillingConcernSubmitted] = useState(false);
   const [billingConcernTicketNumber, setBillingConcernTicketNumber] = useState('');
-  const barcodeRef = useRef(null);
+  const barcodeRefs = useRef([]);
 
   const inputCls = 'w-full border border-gray-200 bg-white text-gray-800 placeholder-gray-400 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900';
   const labelCls = 'block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide';
 
-  // Generate barcode when billData is set
+  // Generate barcodes when bill data list is set
   useEffect(() => {
-    if (billData && barcodeRef.current) {
-      const conscode = billData['Conscode'] || billData['conscode'] || '';
-      if (conscode) {
-        try {
-          JsBarcode(barcodeRef.current, conscode, {
-            format: 'CODE128',
-            width: 2,
-            height: 50,
-            displayValue: true,
-            fontSize: 10,
-          });
-        } catch (err) {
-          console.error('Error generating barcode:', err);
-        }
+    billDataList.forEach((bill, index) => {
+      const barcodeEl = barcodeRefs.current[index];
+      const conscode = bill['Conscode'] || bill['conscode'] || '';
+      if (!barcodeEl || !conscode) return;
+      try {
+        JsBarcode(barcodeEl, conscode, {
+          format: 'CODE128',
+          width: 2,
+          height: 50,
+          displayValue: true,
+          fontSize: 10,
+        });
+      } catch (err) {
+        console.error('Error generating barcode:', err);
       }
-    }
-  }, [billData]);
+    });
+  }, [billDataList]);
 
   // Generate ticket number for leak reports
   const generateTicketNumber = () => {
@@ -2208,7 +2208,7 @@ function ServiceFormScreen({ config, onClose }) {
   };
 
   async function handleSubmit(e) {
-    e.preventDefault(); setError(''); setBillData(null); setBillNotFound(false); setLeakReportSubmitted(false); setWaterIssueSubmitted(false); setBillingConcernSubmitted(false);
+    e.preventDefault(); setError(''); setBillDataList([]); setBillNotFound(false); setLeakReportSubmitted(false); setWaterIssueSubmitted(false); setBillingConcernSubmitted(false);
     
     // Special handling for "View Bill" service
     if (config.label === 'View Bill') {
@@ -2238,9 +2238,9 @@ function ServiceFormScreen({ config, onClose }) {
           throw new Error('Conscode column not found in bill data.');
         }
         
-        const matchedRow = rows.find(row => row[conscodeIndex] && row[conscodeIndex].toString().trim().toLowerCase() === conscode.toLowerCase());
+        const matchedRows = rows.filter(row => row[conscodeIndex] && row[conscodeIndex].toString().trim().toLowerCase() === conscode.toLowerCase());
         
-        if (!matchedRow) {
+        if (matchedRows.length === 0) {
           // Bill not found - save with Failed status and return
           billStatus = 'Failed';
           const rowData = [form.name || '', form.conscode || '', form.accountNumber || '', form.notes || '', billStatus];
@@ -2254,9 +2254,12 @@ function ServiceFormScreen({ config, onClose }) {
         }
         
         // Build the bill data object
-        const bill = {};
-        headers.forEach((header, index) => {
-          bill[header] = matchedRow[index] || '';
+        const bills = matchedRows.map(row => {
+          const bill = {};
+          headers.forEach((header, index) => {
+            bill[header] = row[index] || '';
+          });
+          return bill;
         });
         
         // Bill found successfully - save with Success status
@@ -2267,7 +2270,7 @@ function ServiceFormScreen({ config, onClose }) {
           body: JSON.stringify({ tabName: config.tabName, headers: config.headers, rowData }),
         });
         
-        setBillData(bill);
+        setBillDataList(bills);
       } catch (err) { 
         // Error occurred - save with Failed status
         billStatus = 'Failed';
@@ -2563,20 +2566,14 @@ function ServiceFormScreen({ config, onClose }) {
     setSub(false);
   }
   
-  // Display bill if found
-  if (billData) {
-    // Parse currency values and calculate total
+  // Display bills if found
+  if (billDataList.length > 0) {
     const parseAmount = (val) => {
       if (!val) return 0;
       const str = String(val).replace(/[^\d.]/g, '');
       return parseFloat(str) || 0;
     };
-    
-    const waterFee = parseAmount(billData['Water Fee'] || billData['water_fee'] || billData['WaterFee']);
-    const installFee = parseAmount(billData['Installation Fee'] || billData['installation_fee'] || billData['InstallationFee']);
-    const meterMaint = parseAmount(billData['Meter Maintenance'] || billData['meter_maintenance'] || billData['MeterMaintenance']);
-    const total = (waterFee + installFee + meterMaint).toFixed(2);
-    
+
     return (
       <div className="fixed inset-0 z-[200] bg-gray-100 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
         <div className="min-h-full flex flex-col w-full">
@@ -2589,85 +2586,109 @@ function ServiceFormScreen({ config, onClose }) {
             </button>
             <div className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-white/80" strokeWidth={1.5} />
-              <h2 className="text-base font-bold text-white">Your Water Bill</h2>
+              <h2 className="text-base font-bold text-white">Your Water Bills</h2>
             </div>
           </div>
 
-          {/* Content - Receipt Style */}
+          {/* Content - Receipt Carousel Style */}
           <div className="flex-1 px-4 py-6">
-            {/* Receipt Paper */}
-            <div 
-              className="mx-auto w-full rounded-sm shadow-lg p-6 border border-yellow-100 font-mono text-sm text-center"
-              style={{
-                backgroundImage: `
-                  repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.02) 1px, rgba(0,0,0,0.02) 2px),
-                  repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(0,0,0,0.01) 1px, rgba(0,0,0,0.01) 2px)
-                `,
-                backgroundColor: '#fffdf7',
-              }}
-            >
-              {/* Header */}
-              <div className="mb-4 pb-3 border-b-2 border-dashed border-gray-400">
-                <p className="font-bold text-lg tracking-wider">WATER BILL</p>
-                <p className="text-xs text-gray-600 mt-1">Billing Statement</p>
-              </div>
+            <p className="text-xs text-gray-600 text-center mb-3">
+              {billDataList.length} matching bill{billDataList.length > 1 ? 's' : ''} found. Swipe left/right to browse.
+            </p>
 
-              {/* Customer Info */}
-              <div className="mb-4 pb-3 border-b border-dashed border-gray-300 text-left space-y-1">
-                <p><span className="font-semibold">Name:</span> <span className="float-right">{billData['Name'] || billData['name'] || '—'}</span></p>
-                <p><span className="font-semibold">Conscode:</span> <span className="float-right">{billData['Conscode'] || billData['conscode'] || '—'}</span></p>
-                {(billData['Account Number'] || billData['account_number']) && (
-                  <p><span className="font-semibold">Account:</span> <span className="float-right">{billData['Account Number'] || billData['account_number']}</span></p>
-                )}
-              </div>
+            <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+              {billDataList.map((billData, index) => {
+                const waterFee = parseAmount(billData['Water Fee'] || billData['water_fee'] || billData['WaterFee']);
+                const installFee = parseAmount(billData['Installation Fee'] || billData['installation_fee'] || billData['InstallationFee']);
+                const meterMaint = parseAmount(billData['Meter Maintenance'] || billData['meter_maintenance'] || billData['MeterMaintenance']);
+                const total = (waterFee + installFee + meterMaint).toFixed(2);
+                return (
+                  <div key={`${billData['Conscode'] || billData['conscode'] || 'bill'}-${index}`} className="snap-center shrink-0 w-full">
+                    {/* Receipt Paper */}
+                    <div
+                      className="mx-auto w-full rounded-sm shadow-lg p-6 border border-yellow-100 font-mono text-sm text-center"
+                      style={{
+                        backgroundImage: `
+                          repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.02) 1px, rgba(0,0,0,0.02) 2px),
+                          repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(0,0,0,0.01) 1px, rgba(0,0,0,0.01) 2px)
+                        `,
+                        backgroundColor: '#fffdf7',
+                      }}
+                    >
+                      {/* Header */}
+                      <div className="mb-4 pb-3 border-b-2 border-dashed border-gray-400">
+                        <p className="font-bold text-lg tracking-wider">WATER BILL</p>
+                        <p className="text-xs text-gray-600 mt-1">Billing Statement</p>
+                      </div>
 
-              {/* Consumption & Important Fields */}
-              {(billData['Consumption'] || billData['consumption']) && (
-                <div className="mb-4 pb-3 border-b border-dashed border-gray-300 text-left">
-                  <p className="font-semibold">Consumption: <span className="float-right">{billData['Consumption'] || billData['consumption']} m³</span></p>
-                </div>
-              )}
+                      {/* Customer Info */}
+                      <div className="mb-4 pb-3 border-b border-dashed border-gray-300 text-left space-y-1">
+                        <p><span>Name:</span> <span className="float-right">{billData['Name'] || billData['name'] || '—'}</span></p>
+                        <p><span>Conscode:</span> <span className="float-right">{billData['Conscode'] || billData['conscode'] || '—'}</span></p>
+                        {(billData['Account Number'] || billData['account_number']) && (
+                          <p><span className="font-semibold">Account:</span> <span className="float-right">{billData['Account Number'] || billData['account_number']}</span></p>
+                        )}
+                      </div>
 
-              {/* Charges */}
-              <div className="mb-4 pb-3 border-b-2 border-dashed border-gray-400 text-left space-y-2">
-                <p className="font-semibold text-center mb-2">CHARGES</p>
-                <p><span>Water Fee:</span> <span className="float-right">₱{waterFee.toFixed(2)}</span></p>
-                {installFee > 0 && (
-                  <p><span>Installation Fee:</span> <span className="float-right">₱{installFee.toFixed(2)}</span></p>
-                )}
-                {meterMaint > 0 && (
-                  <p><span>Meter Maintenance:</span> <span className="float-right">₱{meterMaint.toFixed(2)}</span></p>
-                )}
-              </div>
+                      {/* Consumption & Important Fields */}
+                      {(billData['Consumption'] || billData['consumption']) && (
+                        <div className="mb-4 pb-3 border-b border-dashed border-gray-300 text-left">
+                          <p>Consumption: <span className="float-right">{billData['Consumption'] || billData['consumption']} m³</span></p>
+                        </div>
+                      )}
 
-              {/* Total */}
-              <div className="mb-4 pb-3 border-b-2 border-dashed border-gray-400">
-                <p className="text-lg font-bold">TOTAL: <span className="float-right">₱{total}</span></p>
-              </div>
+                      {/* Charges */}
+                      <div className="mb-4 pb-3 border-b-2 border-dashed border-gray-400 text-left space-y-2">
+                        <p className="font-semibold text-center mb-2">CHARGES</p>
+                        <p><span>Water Fee:</span> <span className="float-right">₱{waterFee.toFixed(2)}</span></p>
+                        {installFee > 0 && (
+                          <p><span>Installation Fee:</span> <span className="float-right">₱{installFee.toFixed(2)}</span></p>
+                        )}
+                        {meterMaint > 0 && (
+                          <p><span>Meter Maintenance:</span> <span className="float-right">₱{meterMaint.toFixed(2)}</span></p>
+                        )}
+                      </div>
 
-              {/* Dates */}
-              <div className="mb-4 text-left space-y-1 text-xs">
-                {(billData['Due Date'] || billData['due_date']) && (
-                  <p><span className="font-semibold">Due Date:</span> <span className="float-right">{billData['Due Date'] || billData['due_date']}</span></p>
-                )}
-                {(billData['Disconnection Date'] || billData['discon_date']) && (
-                  <p className="text-red-600"><span className="font-semibold">Cutoff Date:</span> <span className="float-right">{billData['Disconnection Date'] || billData['discon_date']}</span></p>
-                )}
-              </div>
+                      {/* Total */}
+                      <div className="mb-4 pb-3 border-b-2 border-dashed border-gray-400">
+                        <p className="text-lg font-bold">TOTAL: <span className="float-right">₱{total}</span></p>
+                      </div>
 
-              {/* Footer */}
-              <div className="pt-3 border-t-2 border-dashed border-gray-400 text-xs text-gray-600">
-                <p>Thank you for paying on time</p>
-                
-                {/* Barcode */}
-                <div className="mt-4 flex justify-center">
-                  <svg ref={barcodeRef}></svg>
-                </div>
-              </div>
+                      {/* Dates */}
+                      <div className="mb-4 text-left space-y-1">
+                        {(billData['Due Date'] || billData['due_date']) && (
+                          <p><span>Due Date:</span> <span className="float-right">{billData['Due Date'] || billData['due_date']}</span></p>
+                        )}
+                        {(billData['Disconnection Date'] || billData['discon_date']) && (
+                          <p><span>Cutoff Date:</span> <span className="float-right">{billData['Disconnection Date'] || billData['discon_date']}</span></p>
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-3 border-t-2 border-dashed border-gray-400 text-xs text-gray-600">
+                        <p>Thank you for paying on time</p>
+
+                        {/* Barcode */}
+                        <div className="mt-4 flex justify-center">
+                          <svg ref={(el) => { barcodeRefs.current[index] = el; }}></svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            
+
+            {billDataList.length > 1 && (
+              <div className="flex justify-center gap-1.5 pt-3">
+                {billDataList.map((_, index) => (
+                  <span key={index} className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                ))}
+              </div>
+            )}
+
             <div className="flex gap-3 pt-6 pb-6">
-              <button onClick={() => { setBillData(null); }} 
+              <button onClick={() => { setBillDataList([]); }}
                 className="flex-1 bg-blue-900 hover:bg-blue-800 text-white font-semibold text-sm py-3 rounded-lg transition-colors">
                 Back to Form
               </button>
