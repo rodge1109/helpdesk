@@ -2161,6 +2161,36 @@ function LocationPicker({ value, onChange }) {
   );
 }
 
+function ThreeDotsLoader({
+  message = '',
+  fullScreen = false,
+  dotColorClass = 'bg-blue-900',
+  textColorClass = 'text-blue-900',
+  dotSizeClass = 'w-3 h-3',
+  gapClass = 'gap-2',
+}) {
+  const loaderContent = (
+    <div className="text-center">
+      {message && <p className={`text-sm font-semibold mb-4 ${textColorClass}`}>{message}</p>}
+      <div className={`flex items-center justify-center ${gapClass}`}>
+        {[0, 1, 2].map((dot) => (
+          <span
+            key={dot}
+            className={`${dotSizeClass} rounded-full ${dotColorClass} animate-bounce`}
+            style={{ animationDelay: `${dot * 0.2}s` }}
+          ></span>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (fullScreen) {
+    return <div className="fixed inset-0 z-[200] bg-gray-50 flex items-center justify-center">{loaderContent}</div>;
+  }
+
+  return loaderContent;
+}
+
 function ServiceFormScreen({ config, onClose }) {
   const [form, setForm]       = useState(Object.fromEntries(config.fields.map(f => [f.key, ''])));
   const [submitting, setSub]  = useState(false);
@@ -2180,6 +2210,7 @@ function ServiceFormScreen({ config, onClose }) {
 
   const inputCls = 'w-full border border-gray-200 bg-white text-gray-800 placeholder-gray-400 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900';
   const labelCls = 'block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide';
+  const numericKeyboardFieldKeys = new Set(['conscode', 'contactNumber', 'phoneNumber']);
 
   // Generate barcodes when bill data list is set
   useEffect(() => {
@@ -2586,22 +2617,7 @@ function ServiceFormScreen({ config, onClose }) {
   }
 
   if (showBillLoader) {
-    return (
-      <div className="fixed inset-0 z-[200] bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-sm font-semibold text-blue-900 mb-4">Fetching your bill</p>
-          <div className="flex items-center justify-center gap-2">
-            {[0, 1, 2].map((dot) => (
-              <span
-                key={dot}
-                className="w-3 h-3 rounded-full bg-blue-900 animate-bounce"
-                style={{ animationDelay: `${dot * 0.2}s` }}
-              ></span>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <ThreeDotsLoader fullScreen message="Fetching your bill" />;
   }
   
   // Display bills if found
@@ -2870,17 +2886,27 @@ function ServiceFormScreen({ config, onClose }) {
                 ) : f.type === 'map' ? (
                   <LocationPicker value={form[f.key]} onChange={v => setForm(p => ({ ...p, [f.key]: v }))} />
                 ) : (
-                  <input type={f.type} required={f.required} value={form[f.key]}
+                  <input
+                    type={numericKeyboardFieldKeys.has(f.key) && f.type === 'text' ? 'tel' : f.type}
+                    inputMode={numericKeyboardFieldKeys.has(f.key) ? 'numeric' : undefined}
+                    required={f.required}
+                    value={form[f.key]}
                     onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className={inputCls} />
+                    className={inputCls}
+                  />
                 )}
               </div>
             ))}
             {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
             <div className="flex gap-3 pt-2 pb-6">
               <button type="submit" disabled={submitting}
-                className="flex-1 bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white font-semibold text-sm py-3 rounded-lg transition-colors">
-                {submitting ? 'Searching…' : 'Submit Request'}
+                className="flex-1 bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white font-semibold text-sm py-3 rounded-lg transition-colors flex items-center justify-center">
+                {submitting ? (
+                  <div className="flex items-center gap-2">
+                    <span>Searching</span>
+                    <ThreeDotsLoader dotColorClass="bg-white" dotSizeClass="w-1.5 h-1.5" gapClass="gap-1" />
+                  </div>
+                ) : 'Submit Request'}
               </button>
               <button type="button" onClick={onClose}
                 className="flex-1 border border-gray-300 text-gray-600 font-semibold text-sm py-3 rounded-lg hover:bg-gray-100 transition-colors">
