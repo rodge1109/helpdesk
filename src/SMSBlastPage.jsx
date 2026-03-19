@@ -2168,6 +2168,7 @@ function ServiceFormScreen({ config, onClose }) {
   const [error, setError]     = useState('');
   const [billDataList, setBillDataList] = useState([]);
   const [billNotFound, setBillNotFound] = useState(false);
+  const [showBillLoader, setShowBillLoader] = useState(false);
   const [ticketNumber, setTicketNumber] = useState('');
   const [leakReportSubmitted, setLeakReportSubmitted] = useState(false);
   const [waterIssueSubmitted, setWaterIssueSubmitted] = useState(false);
@@ -2175,6 +2176,7 @@ function ServiceFormScreen({ config, onClose }) {
   const [billingConcernSubmitted, setBillingConcernSubmitted] = useState(false);
   const [billingConcernTicketNumber, setBillingConcernTicketNumber] = useState('');
   const barcodeRefs = useRef([]);
+  const billLoaderTimeoutRef = useRef(null);
 
   const inputCls = 'w-full border border-gray-200 bg-white text-gray-800 placeholder-gray-400 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900';
   const labelCls = 'block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide';
@@ -2199,6 +2201,14 @@ function ServiceFormScreen({ config, onClose }) {
     });
   }, [billDataList]);
 
+  useEffect(() => {
+    return () => {
+      if (billLoaderTimeoutRef.current) {
+        clearTimeout(billLoaderTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Generate ticket number for leak reports
   const generateTicketNumber = () => {
     const now = new Date();
@@ -2208,7 +2218,11 @@ function ServiceFormScreen({ config, onClose }) {
   };
 
   async function handleSubmit(e) {
-    e.preventDefault(); setError(''); setBillDataList([]); setBillNotFound(false); setLeakReportSubmitted(false); setWaterIssueSubmitted(false); setBillingConcernSubmitted(false);
+    e.preventDefault(); setError(''); setBillDataList([]); setBillNotFound(false); setShowBillLoader(false); setLeakReportSubmitted(false); setWaterIssueSubmitted(false); setBillingConcernSubmitted(false);
+    if (billLoaderTimeoutRef.current) {
+      clearTimeout(billLoaderTimeoutRef.current);
+      billLoaderTimeoutRef.current = null;
+    }
     
     // Special handling for "View Bill" service
     if (config.label === 'View Bill') {
@@ -2270,7 +2284,12 @@ function ServiceFormScreen({ config, onClose }) {
           body: JSON.stringify({ tabName: config.tabName, headers: config.headers, rowData }),
         });
         
-        setBillDataList(bills);
+        setShowBillLoader(true);
+        billLoaderTimeoutRef.current = setTimeout(() => {
+          setBillDataList(bills);
+          setShowBillLoader(false);
+          billLoaderTimeoutRef.current = null;
+        }, 3000);
       } catch (err) { 
         // Error occurred - save with Failed status
         billStatus = 'Failed';
@@ -2564,6 +2583,25 @@ function ServiceFormScreen({ config, onClose }) {
       setSuccess(true);
     } catch (err) { setError(err.message); }
     setSub(false);
+  }
+
+  if (showBillLoader) {
+    return (
+      <div className="fixed inset-0 z-[200] bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-sm font-semibold text-blue-900 mb-4">Fetching your bill</p>
+          <div className="flex items-center justify-center gap-2">
+            {[0, 1, 2].map((dot) => (
+              <span
+                key={dot}
+                className="w-3 h-3 rounded-full bg-blue-900 animate-bounce"
+                style={{ animationDelay: `${dot * 0.2}s` }}
+              ></span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
   
   // Display bills if found
