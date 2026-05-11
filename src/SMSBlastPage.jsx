@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -1996,17 +1996,13 @@ function ChatBotContent() {
     </div>
   );
 }
-
 const SERVICE_CONFIGS = [
   {
     icon: FileText, label: 'View Bill', desc: 'Check your current water bill',
     tabName: 'BillInquiries',
     headers: ['Name', 'Conscode', 'Account Number', 'Notes', 'Status'],
     fields: [
-      { key: 'name',          label: 'Full Name',       type: 'text',     required: true  },
       { key: 'conscode',      label: 'Conscode',        type: 'text',     required: true  },
-      { key: 'accountNumber', label: 'Account Number',  type: 'text',     required: false },
-      { key: 'notes',         label: 'Notes',           type: 'textarea', required: false },
     ],
   },
   {
@@ -2023,100 +2019,6 @@ const SERVICE_CONFIGS = [
         options: ['Cash', 'GCash', 'Maya', 'Bank Transfer', 'Other'] },
       { key: 'referenceNumber', label: 'Reference Number', type: 'text',     required: false },
       { key: 'remarks',         label: 'Remarks',          type: 'textarea', required: false },
-    ],
-  },
-  {
-    icon: AlertTriangle, label: 'Report a Leak', desc: 'Report water leak in your area',
-    tabName: 'LeakReports',
-    headers: ['Name', 'Contact Number', 'Address', 'Location of Leak', 'Description', 'Urgency', 'Ticket Number'],
-    fields: [
-      { key: 'name',           label: 'Full Name',        type: 'text',     required: true  },
-      { key: 'contactNumber',  label: 'Contact Number',   type: 'text',     required: true  },
-      { key: 'address',        label: 'Address',          type: 'text',     required: true  },
-      { key: 'leakLocation',   label: 'Location of Leak', type: 'map',      required: true  },
-      { key: 'description',    label: 'Description',      type: 'textarea', required: true  },
-      { key: 'urgency',        label: 'Urgency',          type: 'select',   required: true,
-        options: ['Low', 'Medium', 'High — Needs Immediate Attention'] },
-    ],
-  },
-  {
-    icon: ClipboardList, label: 'Billing Concerns', desc: 'Raise a billing dispute or inquiry',
-    tabName: 'BillingConcerns',
-    headers: ['Name', 'Account Number', 'Contact Number', 'Concern Type', 'Description', 'Ticket Number'],
-    fields: [
-      { key: 'name',          label: 'Full Name',      type: 'text',     required: true  },
-      { key: 'accountNumber', label: 'Account Number', type: 'text',     required: true  },
-      { key: 'contactNumber', label: 'Contact Number', type: 'text',     required: true  },
-      { key: 'concernType',   label: 'Concern Type',   type: 'select',   required: true,
-        options: ['Overcharge', 'Incorrect Meter Reading', 'Penalty Dispute', 'Duplicate Bill', 'Others'] },
-      { key: 'description',   label: 'Description',    type: 'textarea', required: true  },
-    ],
-  },
-  {
-    icon: Home, label: 'New Service Application', desc: 'Apply for a new water connection',
-    tabName: 'ServiceApplications',
-    headers: ['Applicant Name', 'Address', 'Contact Number', 'Email', 'Property Type', 'Connection Type'],
-    fields: [
-      { key: 'applicantName',  label: 'Applicant Name',  type: 'text',   required: true  },
-      { key: 'address',        label: 'Address',         type: 'text',   required: true  },
-      { key: 'contactNumber',  label: 'Contact Number',  type: 'text',   required: true  },
-      { key: 'email',          label: 'Email',           type: 'email',  required: false },
-      { key: 'propertyType',   label: 'Property Type',   type: 'select', required: true,
-        options: ['Residential', 'Commercial', 'Industrial'] },
-      { key: 'connectionType', label: 'Connection Type', type: 'select', required: true,
-        options: ['New Connection', 'Transfer of Account', 'Additional Connection'] },
-    ],
-  },
-  {
-    icon: RefreshCw, label: 'Reconnect Service', desc: 'Request service reconnection',
-    tabName: 'ReconnectRequests',
-    headers: ['Name', 'Conscode', 'Account Number', 'Contact Number', 'Address', 'Reason for Disconnection'],
-    fields: [
-      { key: 'name',          label: 'Full Name',                type: 'text',     required: true  },
-      { key: 'conscode',      label: 'Conscode',                 type: 'text',     required: false },
-      { key: 'accountNumber', label: 'Account Number',           type: 'text',     required: false },
-      { key: 'contactNumber', label: 'Contact Number',           type: 'text',     required: true  },
-      { key: 'address',       label: 'Address',                  type: 'text',     required: true  },
-      { key: 'reason',        label: 'Reason for Disconnection', type: 'textarea', required: true  },
-    ],
-  },
-  {
-    icon: Droplets, label: 'Low Pressure / No Water Report', desc: 'Report water supply issues',
-    tabName: 'WaterIssues',
-    headers: ['Name', 'Contact Number', 'Address', 'Issue Type', 'Date/Time Noticed', 'Description', 'Ticket Number'],
-    fields: [
-      { key: 'name',          label: 'Full Name',         type: 'text',           required: true  },
-      { key: 'contactNumber', label: 'Contact Number',    type: 'text',           required: true  },
-      { key: 'address',       label: 'Address',           type: 'text',           required: true  },
-      { key: 'issueType',     label: 'Issue Type',        type: 'select',         required: true,
-        options: ['Low Water Pressure', 'No Water Supply', 'Discolored Water', 'Other'] },
-      { key: 'dateNoticed',   label: 'Date/Time Noticed', type: 'datetime-local', required: true  },
-      { key: 'description',   label: 'Description',       type: 'textarea',       required: false },
-    ],
-  },
-  {
-    icon: MessageSquare, label: 'Customer Support Chat', desc: 'Send a message to our support team',
-    tabName: 'SupportRequests',
-    headers: ['Name', 'Contact Number', 'Subject', 'Message'],
-    fields: [
-      { key: 'name',          label: 'Full Name',      type: 'text',     required: true },
-      { key: 'contactNumber', label: 'Contact Number', type: 'text',     required: true },
-      { key: 'subject',       label: 'Subject',        type: 'text',     required: true },
-      { key: 'message',       label: 'Message',        type: 'textarea', required: true },
-    ],
-  },
-  {
-    icon: Wrench, label: 'Request a Plumber', desc: 'Request a plumber for repairs or installation',
-    tabName: 'PlumberRequests',
-    headers: ['Full Name', 'Address', 'Phone Number', 'Email', 'Nature of Repair', 'Urgency'],
-    fields: [
-      { key: 'name',          label: 'Full Name',         type: 'text',     required: true  },
-      { key: 'address',       label: 'Address',           type: 'text',     required: true  },
-      { key: 'phoneNumber',   label: 'Phone Number',      type: 'text',     required: true  },
-      { key: 'email',         label: 'Email Address',     type: 'email',    required: true  },
-      { key: 'natureRepair',  label: 'Nature of Repair',  type: 'textarea', required: true  },
-      { key: 'urgency',       label: 'Urgency',           type: 'select',   required: true,
-        options: ['Low — Schedule at convenience', 'Medium — Within the week', 'High — Urgent, needs immediate attention'] },
     ],
   },
 ];
@@ -2192,7 +2094,14 @@ function ThreeDotsLoader({
 }
 
 function ServiceFormScreen({ config, onClose }) {
-  const [form, setForm]       = useState(Object.fromEntries(config.fields.map(f => [f.key, ''])));
+  const [form, setForm] = useState(() => {
+    const initial = Object.fromEntries(config.fields.map(f => [f.key, '']));
+    config.fields.forEach(f => {
+      const saved = localStorage.getItem(`last_${f.key}`);
+      if (saved) initial[f.key] = saved;
+    });
+    return initial;
+  });
   const [submitting, setSub]  = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError]     = useState('');
@@ -2255,6 +2164,11 @@ function ServiceFormScreen({ config, onClose }) {
       billLoaderTimeoutRef.current = null;
     }
     
+    // Save current form values to remember for next time
+    config.fields.forEach(f => {
+      if (form[f.key]) localStorage.setItem(`last_${f.key}`, form[f.key]);
+    });
+
     // Special handling for "View Bill" service
     if (config.label === 'View Bill') {
       const conscode = form.conscode?.trim();
@@ -2283,7 +2197,7 @@ function ServiceFormScreen({ config, onClose }) {
           throw new Error('Conscode column not found in bill data.');
         }
         
-        const matchedRows = rows.filter(row => row[conscodeIndex] && row[conscodeIndex].toString().trim().toLowerCase() === conscode.toLowerCase());
+        const matchedRows = rows.filter(row => row[conscodeIndex] && row[conscodeIndex].toString().trim().toLowerCase() === conscode.toLowerCase()).reverse();
         
         if (matchedRows.length === 0) {
           // Bill not found - save with Failed status and return
@@ -2866,9 +2780,9 @@ function ServiceFormScreen({ config, onClose }) {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className={`space-y-6 ${config.label === 'View Bill' ? 'flex flex-col items-center justify-center py-10' : ''}`}>
             {config.fields.map(f => (
-              <div key={f.key}>
+              <div key={f.key} className={config.label === 'View Bill' ? 'w-full max-w-xs text-center' : ''}>
                 <label className={labelCls}>
                   {f.label}{f.required && <span className="text-red-500 ml-0.5">*</span>}
                 </label>
@@ -2897,8 +2811,8 @@ function ServiceFormScreen({ config, onClose }) {
                 )}
               </div>
             ))}
-            {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
-            <div className="flex gap-3 pt-2 pb-6">
+            {error && <p className={`text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 ${config.label === 'View Bill' ? 'w-full max-w-xs' : ''}`}>{error}</p>}
+            <div className={`flex gap-3 pt-2 pb-6 ${config.label === 'View Bill' ? 'w-full max-w-xs' : ''}`}>
               <button type="submit" disabled={submitting}
                 className="flex-1 bg-blue-900 hover:bg-blue-800 disabled:opacity-50 text-white font-semibold text-sm py-3 rounded-lg transition-colors flex items-center justify-center">
                 {submitting ? (
