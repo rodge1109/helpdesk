@@ -986,19 +986,26 @@ function ToolsContent() {
 
       // Replace Google Sheet tab LatestBill unless SMS-only mode is enabled.
       if (!smsOnly) {
-        const sheetHeaders = [...BILL_COLS, 'Due Date', 'Disconnection Date'];
+        const sheetHeaders = ['Name', 'Account Number', ...BILL_COLS, 'Due Date', 'Disconnection Date'];
         const sheetPayload = {
           headers: sheetHeaders,
-          rows: bills.map(bill => [
-            ...BILL_COLS.map(col => {
-              if (col === 'Water Fee') {
-                return (parseFloat((bill[col] || '0').replace(/,/g, '') || 0) * 1.02).toFixed(2);
-              }
-              return bill[col] || '';
-            }),
-            formatDate(dueDate),
-            formatDate(disconDate),
-          ]),
+          rows: bills.map(bill => {
+            const consumer = findConsumer(bill['Conscode']);
+            const name = consumer ? (consumer['NAME'] || consumer['name'] || '') : '';
+            const acct = consumer ? (consumer['ACCOUNT_NUMBER'] || consumer['account_number'] || '') : '';
+            return [
+              name,
+              acct,
+              ...BILL_COLS.map(col => {
+                if (col === 'Water Fee') {
+                  return (parseFloat((bill[col] || '0').replace(/,/g, '') || 0) * 1.02).toFixed(2);
+                }
+                return bill[col] || '';
+              }),
+              formatDate(dueDate),
+              formatDate(disconDate),
+            ];
+          }),
         };
         const sheetRes = await fetch(`${API_BASE}/sheets/latest-bill/replace`, {
           method: 'POST',
@@ -2223,7 +2230,11 @@ function ServiceFormScreen({ config, onClose }) {
         
         // Bill found successfully - save with Success status
         billStatus = 'Success';
-        const rowData = [form.name || '', form.conscode || '', form.accountNumber || '', form.notes || '', billStatus];
+        const foundBill = bills[0] || {};
+        const displayName = foundBill['Name'] || foundBill['name'] || foundBill['FULLNAME'] || '';
+        const displayAcc  = foundBill['Account Number'] || foundBill['account_number'] || foundBill['ACCTNO'] || '';
+        
+        const rowData = [displayName, form.conscode || '', displayAcc, form.notes || '', billStatus];
         await fetch(`${API_BASE}/sheets/service-request`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tabName: config.tabName, headers: config.headers, rowData }),
