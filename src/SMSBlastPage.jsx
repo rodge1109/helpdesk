@@ -2187,14 +2187,28 @@ function ServiceFormScreen({ config, onClose }) {
       setSub(true);
       let billStatus = 'Failed';
       try {
-        // Fetch the latest bill data
-        const res = await fetch(`${API_BASE}/sheets/latest-bill`);
-        const text = await res.text();
+        // Fetch the latest bill data and masterlist in parallel
+        const [billRes, masterlistRes] = await Promise.all([
+          fetch(`${API_BASE}/sheets/latest-bill`),
+          fetch(`${API_BASE}/sheets/masterlist`)
+        ]);
+
+        const [billText, masterlistText] = await Promise.all([
+          billRes.text(),
+          masterlistRes.text()
+        ]);
+
         let data;
-        try { data = JSON.parse(text); } catch {
-          throw new Error(`Server error (${res.status}): ${text.replace(/<[^>]+>/g, '').trim().slice(0, 200)}`);
+        try { data = JSON.parse(billText); } catch {
+          throw new Error(`Server error (${billRes.status}): ${billText.replace(/<[^>]+>/g, '').trim().slice(0, 200)}`);
         }
         if (!data.success) throw new Error(data.error || 'Failed to fetch bill data.');
+
+        let masterlistData;
+        try { masterlistData = JSON.parse(masterlistText); } catch {
+          // If masterlist fails to parse, degrade gracefully and continue
+          masterlistData = { success: false };
+        }
         
         // Search for the conscode in the rows
         const { headers, rows } = data;
@@ -2218,6 +2232,28 @@ function ServiceFormScreen({ config, onClose }) {
           setSub(false);
           return;
         }
+
+        // Parse masterlist rows if available to lookup consumer info
+        let masterlistRows = [];
+        if (masterlistData.success && masterlistData.headers && masterlistData.rows) {
+          const mlHeaders = masterlistData.headers;
+          masterlistRows = masterlistData.rows.map(r => {
+            const item = {};
+            mlHeaders.forEach((h, i) => {
+              item[h] = r[i] || '';
+            });
+            return item;
+          });
+        }
+
+        // Find consumer in masterlist
+        const codeNum = parseInt(conscode, 10);
+        const matchedConsumer = masterlistRows.find(r => {
+          const rowCode = String(r['CONSCODE'] || r['conscode'] || Object.values(r)[0] || '').trim();
+          if (rowCode.toLowerCase() === conscode.toLowerCase()) return true;
+          const rowNum = parseInt(rowCode, 10);
+          return !isNaN(codeNum) && !isNaN(rowNum) && codeNum === rowNum;
+        });
         
         // Build the bill data object
         const bills = matchedRows.map(row => {
@@ -2225,13 +2261,24 @@ function ServiceFormScreen({ config, onClose }) {
           headers.forEach((header, index) => {
             bill[header] = row[index] || '';
           });
+
+          // If the bill doesn't have a Name or Account Number, retrieve it from the masterlist
+          const nameInBill = bill['Name'] || bill['name'] || bill['FULLNAME'] || '';
+          if (!nameInBill && matchedConsumer) {
+            bill['Name'] = matchedConsumer['NAME'] || matchedConsumer['name'] || matchedConsumer['consumer_name'] || '';
+          }
+          const accInBill = bill['Account Number'] || bill['account_number'] || bill['ACCTNO'] || '';
+          if (!accInBill && matchedConsumer) {
+            bill['Account Number'] = matchedConsumer['ACCOUNT_NUMBER'] || matchedConsumer['account_number'] || '';
+          }
+
           return bill;
         });
         
         // Bill found successfully - save with Success status
         billStatus = 'Success';
         const foundBill = bills[0] || {};
-        const displayName = foundBill['Name'] || foundBill['name'] || foundBill['FULLNAME'] || '';
+        const displayName = foundBill['Name'] || foundBill['name'] || foundBill['FULLNAME'] || 'Consumer';
         const displayAcc  = foundBill['Account Number'] || foundBill['account_number'] || foundBill['ACCTNO'] || '';
         
         const rowData = [displayName, form.conscode || '', displayAcc, form.notes || '', billStatus];
@@ -2602,7 +2649,7 @@ function ServiceFormScreen({ config, onClose }) {
 
                       {/* Customer Info */}
                       <div className="mb-4 pb-3 border-b border-dashed border-gray-300 text-left space-y-1">
-                        <p><span>Name:</span> <span className="float-right">{billData['Name'] || billData['name'] || '—'}</span></p>
+                        <p><span>Name:</span> <span className="float-right">{billData['Name'] || billData['name'] || 'Consumer'}</span></p>
                         <p><span>Conscode:</span> <span className="float-right">{billData['Conscode'] || billData['conscode'] || '—'}</span></p>
                         {(billData['Account Number'] || billData['account_number']) && (
                           <p><span className="font-semibold">Account:</span> <span className="float-right">{billData['Account Number'] || billData['account_number']}</span></p>
