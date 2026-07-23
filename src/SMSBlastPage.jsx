@@ -2627,7 +2627,8 @@ function ServiceFormScreen({ config, onClose }) {
                 const waterFee = parseAmount(billData['Water Fee'] || billData['water_fee'] || billData['WaterFee']);
                 const installFee = parseAmount(billData['Installation Fee'] || billData['installation_fee'] || billData['InstallationFee']);
                 const meterMaint = parseAmount(billData['Meter Maintenance'] || billData['meter_maintenance'] || billData['MeterMaintenance']);
-                const total = (waterFee + installFee + meterMaint).toFixed(2);
+                const rawTotal = waterFee + installFee + meterMaint;
+                const total = (Math.round((rawTotal + Number.EPSILON) * 100) / 100).toFixed(2);
                 return (
                   <div key={`${billData['Conscode'] || billData['conscode'] || 'bill'}-${index}`} className="snap-center shrink-0 w-full">
                     {/* Receipt Paper */}
